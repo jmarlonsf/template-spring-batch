@@ -277,4 +277,111 @@ public class ReaderConfig {
                 .fetchSize(100)
                 .build();
     }
+
+    /**
+     * Reader para source_table_a (fluxo de staging)
+     * 
+     * POR QUE ESTE READER CONTINUA SIMPLES?
+     * 
+     * 1. RESPONSABILIDADE ÚNICA
+     *    - Apenas lê dados de uma única tabela (source_table_a)
+     *    - Não faz JOINs, agregações ou transformações complexas
+     *    - Query simples: SELECT * FROM source_table_a
+     *    - Mapeamento direto: ResultSet → SourceRecord
+     * 
+     * 2. SEPARAÇÃO DE CONCERNS
+     *    - Reader: apenas leitura (I/O)
+     *    - Processor: transformação de dados (lógica de negócio)
+     *    - Writer: persistência (I/O)
+     *    - Cada componente tem uma responsabilidade clara
+     * 
+     * 3. PERFORMANCE OTIMIZADA
+     *    - Query simples = plano de execução simples
+     *    - Banco otimiza automaticamente (índices, estatísticas)
+     *    - Streaming via cursor (não carrega tudo na memória)
+     *    - Fetch size padrão do driver é suficiente
+     * 
+     * 4. MANUTENIBILIDADE
+     *    - Código simples = fácil de entender
+     *    - Fácil de testar (apenas leitura)
+     *    - Fácil de modificar (adicionar filtros WHERE se necessário)
+     *    - Não há lógica complexa para quebrar
+     * 
+     * 5. REUSABILIDADE
+     *    - Pode ser usado em diferentes contextos
+     *    - Não acoplado a regras de negócio específicas
+     *    - Pode ser facilmente substituído ou estendido
+     * 
+     * 6. RESTARTABILITY NATIVA
+     *    - Spring Batch gerencia estado do cursor automaticamente
+     *    - Não precisa de lógica customizada
+     *    - Funciona out-of-the-box
+     * 
+     * DIFERENÇA DO READER COM JOIN:
+     * - Este reader: query simples, uma tabela, mapeamento direto
+     * - Reader com JOIN: query complexa, múltiplas tabelas, mapeamento de DTO
+     * 
+     * QUANDO ADICIONAR COMPLEXIDADE:
+     * - Filtros: adicionar WHERE no SQL (ainda simples)
+     * - Transformações simples: adicionar no SQL (UPPER, TRIM, etc.)
+     * - JOINs: criar reader separado (como joinedReader)
+     * - Lógica complexa: adicionar no Processor
+     */
+    @Bean
+    @StepScope
+    @Qualifier("readerSourceA")
+    public JdbcCursorItemReader<SourceRecord> readerSourceA(DataSource dataSource) {
+        return new JdbcCursorItemReaderBuilder<SourceRecord>()
+                .name("readerSourceA")
+                .dataSource(dataSource)
+                .sql("SELECT * FROM source_table_a ORDER BY id")
+                .rowMapper(sourceRecordRowMapper())
+                .build();
+    }
+
+    /**
+     * Reader para source_table_b (fluxo de staging)
+     * 
+     * POR QUE ESTE READER CONTINUA SIMPLES?
+     * 
+     * Mesmas razões do readerSourceA:
+     * 
+     * 1. RESPONSABILIDADE ÚNICA
+     *    - Apenas lê dados de uma única tabela (source_table_b)
+     *    - Query simples: SELECT * FROM source_table_b
+     *    - Mapeamento direto: ResultSet → SourceRecord
+     * 
+     * 2. SEPARAÇÃO DE CONCERNS
+     *    - Reader: apenas leitura
+     *    - Processor: transformação
+     *    - Writer: persistência
+     * 
+     * 3. PERFORMANCE
+     *    - Query simples = otimização automática
+     *    - Streaming via cursor
+     *    - Baixo uso de memória
+     * 
+     * 4. MANUTENIBILIDADE
+     *    - Código simples e claro
+     *    - Fácil de testar e modificar
+     * 
+     * 5. REUSABILIDADE
+     *    - Genérico, não acoplado a regras específicas
+     * 
+     * 6. RESTARTABILITY
+     *    - Gerenciado automaticamente pelo Spring Batch
+     * 
+     * NOTA: ORDER BY id garante ordem consistente para restartability
+     */
+    @Bean
+    @StepScope
+    @Qualifier("readerSourceB")
+    public JdbcCursorItemReader<SourceRecord> readerSourceB(DataSource dataSource) {
+        return new JdbcCursorItemReaderBuilder<SourceRecord>()
+                .name("readerSourceB")
+                .dataSource(dataSource)
+                .sql("SELECT * FROM source_table_b ORDER BY id")
+                .rowMapper(sourceRecordRowMapper())
+                .build();
+    }
 }

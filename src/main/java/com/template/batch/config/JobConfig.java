@@ -98,4 +98,118 @@ public class JobConfig {
                 .start(joinDirectStep)
                 .build();
     }
+
+    /**
+     * Job para processar JOIN posterior usando staging tables
+     * 
+     * FLUXO DO JOB:
+     * 
+     * Step 1: loadStagingAStep
+     *   - Lê de source_table_a
+     *   - Escreve em staging_table_a
+     *   - Pass-through (sem transformação)
+     * 
+     * Step 2: loadStagingBStep
+     *   - Lê de source_table_b
+     *   - Escreve em staging_table_b
+     *   - Pass-through (sem transformação)
+     * 
+     * Step 3: mergeFinalStep
+     *   - Lê de staging_table_a (com lookup em staging_table_b)
+     *   - Aplica regras de negócio (MergedRecord → TargetRecord)
+     *   - Escreve em target_table
+     * 
+     * QUANDO USAR ESTE JOB?
+     * 
+     * 1. CENÁRIO: Processamento em etapas com staging
+     *    - Quando precisa isolar dados de origem dos processados
+     *    - Quando precisa reprocessar apenas etapas específicas
+     *    - Quando precisa validar dados antes do merge final
+     *    - Quando precisa de flexibilidade no reprocessamento
+     * 
+     * 2. REPROCESSAMENTO SELETIVO
+     *    - Se Step 3 (merge) falhar, dados já estão em staging
+     *    - Não precisa reprocessar Step 1 e Step 2
+     *    - Apenas reprocessa Step 3 usando dados em staging
+     *    - Economiza tempo e recursos
+     * 
+     * 3. VALIDAÇÃO E QUALIDADE
+     *    - Pode inspecionar dados em staging antes do merge
+     *    - Pode validar dados antes do Step 3
+     *    - Facilita identificação de problemas
+     *    - Dados intermediários ficam disponíveis para análise
+     * 
+     * 4. FLEXIBILIDADE
+     *    - Pode reprocessar apenas uma staging (A ou B)
+     *    - Pode reprocessar apenas o merge (Step 3)
+     *    - Pode limpar staging e recomeçar
+     *    - Diferentes estratégias de reprocessamento
+     * 
+     * 5. PARALELIZAÇÃO (FUTURA)
+     *    - Step 1 e Step 2 podem ser executados em paralelo
+     *    - Melhor aproveitamento de recursos
+     *    - Reduz tempo total de execução
+     * 
+     * 6. QUANDO NÃO USAR:
+     *    - Processamento simples que não precisa de staging
+     *    - Volume pequeno onde overhead não compensa
+     *    - Quando JOIN direto (joinDirectJob) é suficiente
+     * 
+     * COMPARAÇÃO COM OUTROS JOBS:
+     * 
+     * joinDirectJob:
+     *   - JOIN direto no SQL (source_table_a + source_table_b → target_table)
+     *   - Mais rápido para volumes grandes
+     *   - Menos flexibilidade no reprocessamento
+     *   - Não usa staging
+     * 
+     * joinStagingJob (este):
+     *   - JOIN posterior via staging (source → staging → merge → target)
+     *   - Mais flexível no reprocessamento
+     *   - Permite validação intermediária
+     *   - Usa staging tables
+     * 
+     * jobA + jobB:
+     *   - Processa tabelas separadamente
+     *   - Não faz merge
+     *   - Dados independentes
+     * 
+     * EXEMPLOS DE USO:
+     * 
+     * ✅ USAR joinStagingJob quando:
+     * - Precisa de reprocessamento seletivo (apenas merge, não staging)
+     * - Precisa validar dados antes do merge final
+     * - Precisa inspecionar dados intermediários
+     * - Processamento longo que pode falhar no merge
+     * - ETL complexo com múltiplas etapas
+     * - Precisa de flexibilidade no reprocessamento
+     * 
+     * ❌ NÃO USAR joinStagingJob quando:
+     * - Processamento simples (use joinDirectJob)
+     * - Volume pequeno (overhead não compensa)
+     * - Não precisa de staging (use joinDirectJob)
+     * - Dados independentes (use jobA e jobB)
+     * 
+     * CONFIGURAÇÃO:
+     * - Restartable: true (padrão) - permite reiniciar job interrompido
+     * - Incrementer: RunIdIncrementer - permite executar múltiplas vezes
+     * - Listener: BatchExecutionListener - logging e monitoramento
+     * - Steps em sequência: loadStagingAStep → loadStagingBStep → mergeFinalStep
+     */
+    @Bean
+    @org.springframework.beans.factory.annotation.Qualifier("joinStagingJob")
+    public Job joinStagingJob(
+            JobRepository jobRepository, 
+            Step loadStagingAStep,
+            Step loadStagingBStep,
+            Step mergeFinalStep,
+            BatchExecutionListener listener) {
+        return new JobBuilder("joinStagingJob", jobRepository)
+                .incrementer(new org.springframework.batch.core.launch.support.RunIdIncrementer())
+                .listener(listener)
+                .start(loadStagingAStep)
+                .next(loadStagingBStep)
+                .next(mergeFinalStep)
+                .build();
+    }
 }
