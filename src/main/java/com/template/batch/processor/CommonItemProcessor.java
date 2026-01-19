@@ -2,7 +2,12 @@ package com.template.batch.processor;
 
 import com.template.batch.domain.SourceRecord;
 import com.template.batch.domain.TargetRecord;
+import com.template.batch.util.DateParameterUtil;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -42,7 +47,21 @@ import java.time.LocalDateTime;
  * - Aplicar lógica condicional complexa
  */
 @Component
+@StepScope
 public class CommonItemProcessor implements ItemProcessor<SourceRecord, TargetRecord> {
+
+    private JobParameters jobParameters;
+
+    /**
+     * Injeção via setter para evitar problemas de conversão do Spring
+     * StepExecution é automaticamente disponibilizado no contexto do step
+     */
+    @Value("#{stepExecution}")
+    public void setStepExecution(StepExecution stepExecution) {
+        if (stepExecution != null) {
+            this.jobParameters = stepExecution.getJobParameters();
+        }
+    }
 
     @Override
     public TargetRecord process(SourceRecord source) throws Exception {
@@ -56,9 +75,11 @@ public class CommonItemProcessor implements ItemProcessor<SourceRecord, TargetRe
         target.setValor(source.getValor());
         
         // EXEMPLO: Transformação que DEVE ser feita no Processor
-        // - Dados dinâmicos (timestamp atual)
-        // - Não pode ser feito no SQL (depende do momento da execução)
-        target.setProcessadoEm(LocalDateTime.now());
+        // - Dados dinâmicos (timestamp atual ou do parâmetro)
+        // - Não pode ser feito no SQL (depende do momento da execução ou parâmetro)
+        // - Usa parâmetro 'processDate' se fornecido (formato yyyyMMdd), senão usa LocalDateTime.now()
+        LocalDateTime processDate = DateParameterUtil.getProcessDateOrDefault(jobParameters);
+        target.setProcessadoEm(processDate);
         
         // EXEMPLO: Lógica de negócio complexa (deveria estar aqui)
         // if (source.getValor().compareTo(new BigDecimal("1000")) > 0 && 

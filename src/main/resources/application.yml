@@ -20,7 +20,7 @@ spring:
   # Configuração do Spring Batch
   batch:
     jdbc:
-      initialize-schema: always
+      initialize-schema: never
       table-prefix: BATCH_
     job:
       enabled: false

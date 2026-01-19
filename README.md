@@ -237,6 +237,44 @@ mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=joinDir
 mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=joinStagingJob"
 ```
 
+### Parâmetro de Data (processDate)
+
+Todos os jobs aceitam um parâmetro opcional `processDate` no formato `yyyyMMdd` que substitui o valor de `processado_em` no processamento.
+
+**Formato**: `yyyyMMdd` (ex: `20260119` para 19 de janeiro de 2026)
+
+**Exemplos**:
+
+```powershell
+# Com parâmetro de data (via propriedade)
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=jobA --spring.batch.job.processDate=20260119"
+
+# Com parâmetro de data (via argumento)
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=jobA --processDate=20260119"
+
+# Sem parâmetro de data (usa LocalDateTime.now())
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=jobA"
+```
+
+**Comportamento**:
+- ✅ Se `processDate` for fornecido: usa a data especificada (00:00:00 do dia)
+- ✅ Se `processDate` não for fornecido: usa `LocalDateTime.now()` (comportamento padrão)
+- ✅ Aceita tanto String quanto Long (ex: `20260119` ou `20260119L`)
+- ✅ Se formato inválido: loga warning e usa `LocalDateTime.now()`
+
+**Via JAR**:
+
+```powershell
+# Compilar
+mvn clean package
+
+# Executar com data
+java -jar target/template-spring-batch-1.0.0.jar --spring.batch.job.name=jobA --spring.batch.job.processDate=20260119
+
+# Executar sem data (usa now())
+java -jar target/template-spring-batch-1.0.0.jar --spring.batch.job.name=jobA
+```
+
 ### Executar via JAR
 
 ```powershell
@@ -370,32 +408,44 @@ LIMIT 1;
 ### Exemplo 1: Processamento Simples
 
 ```powershell
-# Executar jobA
+# Executar jobA (sem data - usa LocalDateTime.now())
 mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=jobA"
 
+# Executar jobA (com data específica - 19/01/2026)
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=jobA --spring.batch.job.processDate=20260119"
+
 # Resultado: dados de source_table_a processados e salvos em target_table
+# processado_em será 2026-01-19 00:00:00 se data fornecida, senão será o timestamp atual
 ```
 
 ### Exemplo 2: JOIN Direto
 
 ```powershell
-# Executar joinDirectJob
+# Executar joinDirectJob (sem data)
 mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=joinDirectJob"
+
+# Executar joinDirectJob (com data)
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=joinDirectJob --processDate=20260119"
 
 # Resultado: dados combinados de source_table_a e source_table_b
 # salvos em target_table com valor = valueA + valueB
+# processado_em será a data fornecida ou timestamp atual
 ```
 
 ### Exemplo 3: JOIN via Staging
 
 ```powershell
-# Executar joinStagingJob
+# Executar joinStagingJob (sem data)
 mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=joinStagingJob"
+
+# Executar joinStagingJob (com data)
+mvn spring-boot:run "-Dspring-boot.run.arguments=--spring.batch.job.name=joinStagingJob --spring.batch.job.processDate=20260119"
 
 # Resultado:
 # Step 1: source_table_a → staging_table_a
 # Step 2: source_table_b → staging_table_b
 # Step 3: staging tables → target_table (merge)
+# Todos os registros terão processado_em = 2026-01-19 00:00:00 (se data fornecida)
 ```
 
 ### Exemplo 4: Reprocessamento Seletivo

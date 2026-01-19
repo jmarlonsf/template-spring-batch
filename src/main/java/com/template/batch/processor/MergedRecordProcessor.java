@@ -2,7 +2,12 @@ package com.template.batch.processor;
 
 import com.template.batch.domain.MergedRecord;
 import com.template.batch.domain.TargetRecord;
+import com.template.batch.util.DateParameterUtil;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -84,7 +89,21 @@ import java.time.LocalDateTime;
  *    - Trata valores nulos graciosamente
  */
 @Component
+@StepScope
 public class MergedRecordProcessor implements ItemProcessor<MergedRecord, TargetRecord> {
+
+    private JobParameters jobParameters;
+
+    /**
+     * Injeção via setter para evitar problemas de conversão do Spring
+     * StepExecution é automaticamente disponibilizado no contexto do step
+     */
+    @Value("#{stepExecution}")
+    public void setStepExecution(StepExecution stepExecution) {
+        if (stepExecution != null) {
+            this.jobParameters = stepExecution.getJobParameters();
+        }
+    }
 
     @Override
     public TargetRecord process(MergedRecord merged) throws Exception {
@@ -104,8 +123,6 @@ public class MergedRecordProcessor implements ItemProcessor<MergedRecord, Target
         } else {
             nome = "Sem nome"; // Valor padrão
         }
-
-        nome = "Sem nome"; // Valor padrão
         target.setNome(nome);
         
         // REGRA DE NEGÓCIO 3: VALOR
@@ -126,9 +143,11 @@ public class MergedRecordProcessor implements ItemProcessor<MergedRecord, Target
         target.setValor(valor);
         
         // REGRA DE NEGÓCIO 4: PROCESSADO_EM
-        // Sempre preenche com timestamp atual (momento do processamento)
-        // Não pode ser feito no SQL (depende do momento da execução)
-        target.setProcessadoEm(LocalDateTime.now());
+        // Preenche com timestamp do parâmetro 'processDate' se fornecido (formato yyyyMMdd),
+        // senão usa timestamp atual (momento do processamento)
+        // Não pode ser feito no SQL (depende do momento da execução ou parâmetro)
+        LocalDateTime processDate = DateParameterUtil.getProcessDateOrDefault(jobParameters);
+        target.setProcessadoEm(processDate);
         
         // VALIDAÇÃO: Verifica se ID não é null
         if (target.getId() == null) {
