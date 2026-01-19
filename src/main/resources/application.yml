@@ -2,12 +2,23 @@ spring:
   application:
     name: template-spring-batch
 
+  # Configuração do servidor
+  server:
+    port: 8080
+
   # Configuração do H2
   datasource:
     url: jdbc:h2:mem:batchdb
     driver-class-name: org.h2.Driver
     username: sa
     password:
+
+  # Executa schema.sql e data.sql automaticamente
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
 
   # Console H2 habilitado
   h2:
