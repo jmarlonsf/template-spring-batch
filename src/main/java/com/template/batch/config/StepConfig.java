@@ -1,9 +1,11 @@
 package com.template.batch.config;
 
+import com.template.batch.domain.JoinedSourceRecord;
 import com.template.batch.domain.SourceRecord;
 import com.template.batch.domain.TargetRecord;
 import com.template.batch.listener.BatchExecutionListener;
 import com.template.batch.processor.CommonItemProcessor;
+import com.template.batch.processor.JoinedSourceRecordProcessor;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
@@ -56,6 +58,36 @@ public class StepConfig {
                 .<SourceRecord, TargetRecord>chunk(10, transactionManager)
                 .reader(sourceTableBReader)
                 .processor(commonItemProcessor)
+                .writer(targetTableWriter)
+                .listener(listener)
+                .build();
+    }
+
+    /**
+     * Step para processar JOIN direto entre source_table_a e source_table_b
+     * 
+     * CARACTERÍSTICAS:
+     * - JOIN é feito no SQL (Reader) - otimizado pelo banco
+     * - Processor apenas mapeia campos (JoinedSourceRecord → TargetRecord)
+     * - Writer persiste na target_table
+     * 
+     * DIFERENÇA DOS OUTROS STEPS:
+     * - stepJobA/stepJobB: leem tabelas separadas (SourceRecord)
+     * - joinDirectStep: lê resultado de JOIN (JoinedSourceRecord)
+     */
+    @Bean
+    public Step joinDirectStep(
+            JobRepository jobRepository,
+            PlatformTransactionManager transactionManager,
+            @Qualifier("joinedReader") JdbcCursorItemReader<JoinedSourceRecord> joinedReader,
+            JoinedSourceRecordProcessor joinedSourceRecordProcessor,
+            JdbcBatchItemWriter<TargetRecord> targetTableWriter,
+            BatchExecutionListener listener) {
+        
+        return new StepBuilder("joinDirectStep", jobRepository)
+                .<JoinedSourceRecord, TargetRecord>chunk(10, transactionManager)
+                .reader(joinedReader)
+                .processor(joinedSourceRecordProcessor)
                 .writer(targetTableWriter)
                 .listener(listener)
                 .build();
