@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: template-spring-batch
+
+  # Configuração do H2
+  datasource:
+    url: jdbc:h2:mem:batchdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  # Console H2 habilitado
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # Configuração do Spring Batch
+  batch:
+    jdbc:
+      initialize-schema: always
+      table-prefix: BATCH_
+    job:
+      enabled: false
+
+# Configuração de logging
+logging:
+  level:
+    org.springframework.batch: INFO
+    org.springframework.jdbc: DEBUG
+    com.alelo: DEBUG
