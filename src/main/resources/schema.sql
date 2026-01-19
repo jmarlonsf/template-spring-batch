@@ -1,4 +1,4 @@
--- Schema SQL para o banco H2
+-- Schema SQL para o banco PostgreSQL
 
 -- Tabela de origem A
 CREATE TABLE IF NOT EXISTS source_table_a (

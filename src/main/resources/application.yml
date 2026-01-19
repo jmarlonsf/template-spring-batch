@@ -2,16 +2,13 @@ spring:
   application:
     name: template-spring-batch
 
-  # Configuração do servidor
-  server:
-    port: 8080
-
-  # Configuração do H2
+  # Configuração do PostgreSQL
   datasource:
-    url: jdbc:h2:mem:batchdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:postgresql://localhost:5432/spring_batch
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: postgres
+    platform: postgresql
 
   # Executa schema.sql e data.sql automaticamente
   sql:
@@ -19,12 +16,6 @@ spring:
       mode: always
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
-
-  # Console H2 habilitado
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
 
   # Configuração do Spring Batch
   batch:
@@ -37,6 +28,8 @@ spring:
 # Configuração de logging
 logging:
   level:
-    org.springframework.batch: INFO
+    org.springframework.batch: DEBUG
+    org.springframework.batch.core: DEBUG
     org.springframework.jdbc: DEBUG
+    org.springframework.jdbc.datasource.init: DEBUG
     com.alelo: DEBUG

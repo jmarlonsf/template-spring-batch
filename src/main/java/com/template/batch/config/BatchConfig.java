@@ -1,10 +1,9 @@
 package com.template.batch.config;
 
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableBatchProcessing
 public class BatchConfig {
-    // Configuração básica do Spring Batch habilitada
+    // Spring Boot 3.x já faz autoconfiguração do Spring Batch automaticamente
+    // Não precisa de @EnableBatchProcessing - isso desativa a autoconfiguração
 }
